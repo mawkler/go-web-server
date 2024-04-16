@@ -20,7 +20,16 @@ func middlewareCors(next http.Handler) http.Handler {
 
 func main() {
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.Dir("./website/")))
+
+	fileServer := http.FileServer(http.Dir("."))
+	appHandler := http.StripPrefix("/app", fileServer)
+	mux.Handle("/app/*", appHandler)
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(200)
+		w.Write([]byte("OK"))
+	})
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
