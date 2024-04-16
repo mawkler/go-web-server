@@ -16,6 +16,14 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, _ *http.Request) {
+	fmt.Fprintf(w, "Hits: %d", cfg.fileserverHits)
+}
+
+func (cfg *apiConfig) handlerReset(_ http.ResponseWriter, _ *http.Request) {
+	cfg.fileserverHits = 0
+}
+
 func middlewareCors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -42,12 +50,8 @@ func main() {
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})
-	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hits: %d", apiCfg.fileserverHits)
-	})
-	mux.HandleFunc("/reset", func(w http.ResponseWriter, r *http.Request) {
-		apiCfg.fileserverHits = 0
-	})
+	mux.HandleFunc("/metrics", apiCfg.handlerMetrics)
+	mux.HandleFunc("/reset", apiCfg.handlerReset)
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
