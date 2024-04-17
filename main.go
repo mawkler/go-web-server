@@ -35,6 +35,17 @@ func (cfg *apiConfig) handlerReset(_ http.ResponseWriter, _ *http.Request) {
 	cfg.fileserverHits = 0
 }
 
+func writeResponse[T any](response T, w http.ResponseWriter) {
+	w.Header().Add("Content-Type", "text/json")
+	resp, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		w.Write(nil)
+	}
+	w.Write(resp)
+}
+
 func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Body string `json:"body"`
@@ -52,33 +63,17 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		w.WriteHeader(400)
-		response, err := json.Marshal(errResponse{Error: "Invalid JSON body"})
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-		w.Write(response)
+		writeResponse(errResponse{Error: "Invalid JSON body"}, w)
+		return
 	}
 
 	if len(req.Body) > 140 {
 		w.WriteHeader(400)
-		response, err := json.Marshal(errResponse{Error: "Chirp is too long"})
-		if err != nil {
-			log.Printf("Error marshalling JSON: %s", err)
-			w.WriteHeader(500)
-			return
-		}
-		w.Write(response)
-	}
-
-	response, err := json.Marshal(okResponse{Valid: true})
-	if err != nil {
-		log.Printf("Error marshalling JSON: %s", err)
-		w.WriteHeader(500)
+		writeResponse(errResponse{Error: "Chirp is too long"}, w)
 		return
 	}
-	w.Write(response)
+
+	writeResponse(okResponse{Valid: true}, w)
 }
 
 func middlewareCors(next http.Handler) http.Handler {
