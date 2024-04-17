@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type apiConfig struct {
@@ -35,7 +36,7 @@ func (cfg *apiConfig) handlerReset(_ http.ResponseWriter, _ *http.Request) {
 	cfg.fileserverHits = 0
 }
 
-func writeResponse[T any](response T, w http.ResponseWriter) {
+func writeResponse[T any](response T, code int, w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "text/json")
 	resp, err := json.Marshal(response)
 	if err != nil {
@@ -43,6 +44,7 @@ func writeResponse[T any](response T, w http.ResponseWriter) {
 		w.WriteHeader(500)
 		w.Write(nil)
 	}
+	w.WriteHeader(code)
 	w.Write(resp)
 }
 
@@ -56,24 +58,18 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
 	}
 
 	type okResponse struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 
 	req := request{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
-		w.WriteHeader(400)
-		writeResponse(errResponse{Error: "Invalid JSON body"}, w)
-		return
+		writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
+	} else if len(req.Body) > 140 {
+		writeResponse(errResponse{Error: "Chirp is too long"}, 400, w)
+	} else {
+		writeResponse(okResponse{CleanedBody: cleanMessage(req.Body)}, 200, w)
 	}
-
-	if len(req.Body) > 140 {
-		w.WriteHeader(400)
-		writeResponse(errResponse{Error: "Chirp is too long"}, w)
-		return
-	}
-
-	writeResponse(okResponse{Valid: true}, w)
 }
 
 func middlewareCors(next http.Handler) http.Handler {
@@ -87,6 +83,23 @@ func middlewareCors(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func cleanMessage(msg string) string {
+	profanities := []string{"kerfuffle", "sharbert", "fornax"}
+	newWords := []string{}
+
+	for _, w := range strings.Split(msg, " ") {
+		newWord := w
+		for _, p := range profanities {
+			if strings.ToLower(w) == p {
+				newWord = "****"
+			}
+		}
+		newWords = append(newWords, newWord)
+	}
+
+	return strings.Join(newWords, " ")
 }
 
 func main() {
