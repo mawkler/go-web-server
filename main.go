@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -33,6 +35,52 @@ func (cfg *apiConfig) handlerReset(_ http.ResponseWriter, _ *http.Request) {
 	cfg.fileserverHits = 0
 }
 
+func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+	type request struct {
+		Body string `json:"body"`
+	}
+
+	type errResponse struct {
+		Error string `json:"error"`
+	}
+
+	type okResponse struct {
+		Valid bool `json:"valid"`
+	}
+
+	req := request{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		w.WriteHeader(400)
+		response, err := json.Marshal(errResponse{Error: "Invalid JSON body"})
+		if err != nil {
+			log.Printf("Error marshalling JSON: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		w.Write(response)
+	}
+
+	if len(req.Body) > 140 {
+		w.WriteHeader(400)
+		response, err := json.Marshal(errResponse{Error: "Chirp is too long"})
+		if err != nil {
+			log.Printf("Error marshalling JSON: %s", err)
+			w.WriteHeader(500)
+			return
+		}
+		w.Write(response)
+	}
+
+	response, err := json.Marshal(okResponse{Valid: true})
+	if err != nil {
+		log.Printf("Error marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(response)
+}
+
 func middlewareCors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -61,6 +109,7 @@ func main() {
 	})
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("/api/reset", apiCfg.handlerReset)
+	mux.HandleFunc("/api/validate_chirp", apiCfg.handlerValidateChirp)
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
