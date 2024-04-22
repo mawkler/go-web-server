@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mawkler/go-web-server/database"
 	"log"
 	"net/http"
 	"strings"
@@ -10,6 +11,10 @@ import (
 
 type apiConfig struct {
 	fileserverHits int
+}
+
+type errResponse struct {
+	Error string `json:"error"`
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -51,10 +56,6 @@ func writeResponse[T any](response T, code int, w http.ResponseWriter) {
 func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Body string `json:"body"`
-	}
-
-	type errResponse struct {
-		Error string `json:"error"`
 	}
 
 	type okResponse struct {
@@ -103,6 +104,7 @@ func cleanMessage(msg string) string {
 }
 
 func main() {
+	db := database.New("database/database.json")
 	mux := http.NewServeMux()
 
 	apiCfg := apiConfig{fileserverHits: 0}
@@ -118,6 +120,33 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
 	mux.HandleFunc("/api/reset", apiCfg.handlerReset)
 	mux.HandleFunc("/api/validate_chirp", apiCfg.handlerValidateChirp)
+
+	mux.HandleFunc("GET /api/chirps", func(w http.ResponseWriter, r *http.Request) {
+		chirps, err := db.GetChirps()
+		if err != nil {
+			w.WriteHeader(500)
+		}
+		writeResponse(chirps, 200, w)
+	})
+
+	mux.HandleFunc("POST /api/chirps", func(w http.ResponseWriter, r *http.Request) {
+		type request struct {
+			Body string `json:"body"`
+		}
+
+		req := request{}
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil {
+			writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
+			return
+		}
+
+		chirp, err := db.CreateChirp(req.Body)
+		if err != nil {
+			w.WriteHeader(500)
+		}
+		writeResponse(chirp, 201, w)
+	})
 
 	corsMux := middlewareCors(mux)
 	port := "8080"

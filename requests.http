@@ -1,4 +1,6 @@
-POST http://localhost:8080/api/validate_chirp
+GET http://localhost:8080/api/chirps
+
+POST http://localhost:8080/api/chirps
 {
   "body": "I had kerfuffle for breakfast"
 }
