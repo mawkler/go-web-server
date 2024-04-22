@@ -45,7 +45,7 @@ func (db *DB) ensureDB() error {
 }
 
 func (db *DB) CreateChirp(body string) (Chirp, error) {
-	data, err := db.LoadDB()
+	data, err := db.loadDB()
 	if err != nil {
 		return Chirp{}, fmt.Errorf("failed to load database: %s", err)
 	}
@@ -60,7 +60,7 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 }
 
 func (db *DB) GetChirps() ([]Chirp, error) {
-	data, err := db.LoadDB()
+	data, err := db.loadDB()
 	if err != nil {
 		return nil, errors.New("failed to load database")
 	}
@@ -74,8 +74,7 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirps, nil
 }
 
-// TODO: make private
-func (db *DB) LoadDB() (DBStructure, error) {
+func (db *DB) loadDB() (DBStructure, error) {
 	file, err := os.ReadFile(db.path)
 	if err != nil {
 		db.ensureDB()

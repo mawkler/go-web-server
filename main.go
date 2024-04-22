@@ -10,6 +10,7 @@ import (
 )
 
 type apiConfig struct {
+	DB             *database.DB
 	fileserverHits int
 }
 
@@ -53,26 +54,6 @@ func writeResponse[T any](response T, code int, w http.ResponseWriter) {
 	w.Write(resp)
 }
 
-func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
-	type request struct {
-		Body string `json:"body"`
-	}
-
-	type okResponse struct {
-		CleanedBody string `json:"cleaned_body"`
-	}
-
-	req := request{}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
-	} else if len(req.Body) > 140 {
-		writeResponse(errResponse{Error: "Chirp is too long"}, 400, w)
-	} else {
-		writeResponse(okResponse{CleanedBody: cleanMessage(req.Body)}, 200, w)
-	}
-}
-
 func middlewareCors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -107,46 +88,21 @@ func main() {
 	db := database.New("database/database.json")
 	mux := http.NewServeMux()
 
-	apiCfg := apiConfig{fileserverHits: 0}
+	cfg := apiConfig{fileserverHits: 0, DB: db}
 	fileServer := http.FileServer(http.Dir("."))
 	appHandler := http.StripPrefix("/app", fileServer)
-	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(appHandler))
+	mux.Handle("/app/*", cfg.middlewareMetricsInc(appHandler))
 
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(200)
 		w.Write([]byte("OK"))
 	})
-	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerMetrics)
-	mux.HandleFunc("/api/reset", apiCfg.handlerReset)
-	mux.HandleFunc("/api/validate_chirp", apiCfg.handlerValidateChirp)
-
-	mux.HandleFunc("GET /api/chirps", func(w http.ResponseWriter, r *http.Request) {
-		chirps, err := db.GetChirps()
-		if err != nil {
-			w.WriteHeader(500)
-		}
-		writeResponse(chirps, 200, w)
-	})
-
-	mux.HandleFunc("POST /api/chirps", func(w http.ResponseWriter, r *http.Request) {
-		type request struct {
-			Body string `json:"body"`
-		}
-
-		req := request{}
-		err := json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
-			return
-		}
-
-		chirp, err := db.CreateChirp(req.Body)
-		if err != nil {
-			w.WriteHeader(500)
-		}
-		writeResponse(chirp, 201, w)
-	})
+	mux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
+	mux.HandleFunc("/api/reset", cfg.handlerReset)
+	mux.HandleFunc("/api/validate_chirp", cfg.handlerValidateChirp)
+	mux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
+	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
