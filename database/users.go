@@ -39,3 +39,18 @@ func (db *DB) GetUsers() ([]User, error) {
 
 	return users, nil
 }
+
+func (db *DB) GetUser(id int) (*User, error) {
+	users, err := db.GetUsers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %s", err)
+	}
+
+	for _, user := range users {
+		if user.ID == id {
+			return &user, nil
+		}
+	}
+
+	return nil, nil
+}

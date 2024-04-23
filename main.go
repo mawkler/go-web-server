@@ -101,9 +101,12 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
 	mux.HandleFunc("/api/reset", cfg.handlerReset)
 	mux.HandleFunc("/api/validate_chirp", cfg.handlerValidateChirp)
+	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
 	mux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirp)
-	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
+	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
+	mux.HandleFunc("GET /api/users", cfg.handlerGetUsers)
+	mux.HandleFunc("GET /api/users/{id}", cfg.handlerGetUser)
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
