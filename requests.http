@@ -1,5 +1,7 @@
 GET http://localhost:8080/api/chirps
 
+GET http://localhost:8080/api/chirps/99
+
 POST http://localhost:8080/api/chirps
 {
   "body": "I had kerfuffle for breakfast"

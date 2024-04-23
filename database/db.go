@@ -74,6 +74,21 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	return chirps, nil
 }
 
+func (db *DB) GetChirp(id int) (*Chirp, error) {
+	chirps, err := db.GetChirps()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chirp: %s", err)
+	}
+
+	for _, chirp := range chirps {
+		if chirp.ID == id {
+			return &chirp, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (db *DB) loadDB() (DBStructure, error) {
 	file, err := os.ReadFile(db.path)
 	if err != nil {

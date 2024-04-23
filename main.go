@@ -48,10 +48,10 @@ func writeResponse[T any](response T, code int, w http.ResponseWriter) {
 	if err != nil {
 		log.Printf("Error marshalling JSON: %s", err)
 		w.WriteHeader(500)
-		w.Write(nil)
+	} else {
+		w.WriteHeader(code)
+		w.Write(resp)
 	}
-	w.WriteHeader(code)
-	w.Write(resp)
 }
 
 func middlewareCors(next http.Handler) http.Handler {
@@ -102,6 +102,7 @@ func main() {
 	mux.HandleFunc("/api/reset", cfg.handlerReset)
 	mux.HandleFunc("/api/validate_chirp", cfg.handlerValidateChirp)
 	mux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
+	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirp)
 	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
 
 	corsMux := middlewareCors(mux)
