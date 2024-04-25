@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
-	"github.com/mawkler/go-web-server/database"
 	"log"
 	"net/http"
+	"os"
 	"strings"
+
+	"github.com/mawkler/go-web-server/database"
 )
 
 type apiConfig struct {
@@ -85,7 +88,14 @@ func cleanMessage(msg string) string {
 }
 
 func main() {
-	db := database.New("database/database.json")
+	databasePath := "database/database.json"
+	debug := flag.Bool("debug", false, "Enable debug mode")
+	flag.Parse()
+	if *debug {
+		os.Remove(databasePath)
+	}
+
+	db := database.New(databasePath)
 	mux := http.NewServeMux()
 
 	cfg := apiConfig{fileserverHits: 0, DB: db}
