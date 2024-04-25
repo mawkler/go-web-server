@@ -3,21 +3,29 @@ package database
 import (
 	"errors"
 	"fmt"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
-	ID    int    `json:"id"`
-	Email string `json:"email"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	ID       int    `json:"id"`
 }
 
-func (db *DB) CreateUser(body string) (User, error) {
+func (db *DB) CreateUser(email, password string) (User, error) {
 	data, err := db.loadDB()
 	if err != nil {
 		return User{}, fmt.Errorf("failed to load database: %s", err)
 	}
 
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 4)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to hash password: %s", err)
+	}
+
 	id := len(data.Users) + 1
-	user := User{Email: body, ID: id}
+	user := User{Email: email, Password: string(passwordHash), ID: id}
 	data.Users[id] = user
 
 	db.writeDB(data)

@@ -22,5 +22,6 @@ GET http://localhost:8080/api/users/1
 
 POST http://localhost:8080/api/users
 {
-  "email": "foobar@baz"
+  "email": "foobar@baz",
+  "password": "secure_password"
 }

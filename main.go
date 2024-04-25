@@ -125,6 +125,6 @@ func main() {
 		Handler: corsMux,
 	}
 
-	fmt.Printf("Listening to port %s", port)
+	fmt.Printf("Listening to port %s\n", port)
 	server.ListenAndServe()
 }

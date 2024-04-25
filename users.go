@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -16,7 +17,8 @@ func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type request struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	req := request{}
@@ -26,9 +28,11 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := cfg.DB.CreateUser(req.Email)
+	user, err := cfg.DB.CreateUser(req.Email, req.Password)
 	if err != nil {
+		log.Printf("Failed to create user %s: %s", req.Email, err)
 		w.WriteHeader(500)
+		return
 	}
 	writeResponse(user, 201, w)
 }
