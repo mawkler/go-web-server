@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/mawkler/go-web-server/database"
 )
 
 func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, r *http.Request) {
@@ -57,4 +59,39 @@ func (cfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
 
 	writeResponse(chirp, 200, w)
 
+}
+
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+	type request struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	type response struct {
+		database.User
+	}
+
+	req := request{}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
+		return
+	}
+
+	user, err := cfg.DB.Login(req.Email, req.Password)
+	if err != nil {
+		log.Printf("Unauthenticated: %s", err)
+		w.WriteHeader(401)
+		return
+
+	}
+
+	if user == nil {
+		log.Printf("Unauthenticated, user %s does not exist", req.Email)
+		w.WriteHeader(401)
+		return
+	}
+
+	res := response{User: database.User{Email: user.Email, ID: user.ID}}
+	writeResponse(res, 200, w)
 }

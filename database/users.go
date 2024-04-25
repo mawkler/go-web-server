@@ -59,6 +59,22 @@ func (db *DB) GetUsers() ([]User, error) {
 	return users, nil
 }
 
+func (db *DB) getUsersWithPasswords() ([]UserWithPassword, error) {
+	data, err := db.loadDB()
+	if err != nil {
+		return nil, errors.New("failed to load database")
+	}
+
+	users := make([]UserWithPassword, 0, len(data.Users))
+
+	fmt.Println("data.Users = ", data.Users)
+	for _, user := range data.Users {
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 func (db *DB) GetUser(id int) (*User, error) {
 	users, err := db.GetUsers()
 	if err != nil {
@@ -67,6 +83,24 @@ func (db *DB) GetUser(id int) (*User, error) {
 
 	for _, user := range users {
 		if user.ID == id {
+			return &user, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (db *DB) getUserWithPassword(email string) (*UserWithPassword, error) {
+	users, err := db.getUsersWithPasswords()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %s", err)
+	}
+
+	fmt.Println("users = ", users)
+	for _, user := range users {
+		if user.Email == email {
+			fmt.Println("email = ", email)
+			fmt.Println("user.Email = ", user.Email)
 			return &user, nil
 		}
 	}

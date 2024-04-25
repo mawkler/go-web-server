@@ -25,3 +25,9 @@ POST http://localhost:8080/api/users
   "email": "foobar@baz",
   "password": "secure_password"
 }
+
+POST http://localhost:8080/api/login
+{
+  "email": "foobar@baz",
+  "password": "secure_password"
+}
