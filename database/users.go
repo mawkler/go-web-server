@@ -8,9 +8,17 @@ import (
 )
 
 type User struct {
-	Email    string `json:"email"`
+	Email string `json:"email"`
+	ID    int    `json:"id"`
+}
+
+type UserWithPassword struct {
 	Password string `json:"password"`
-	ID       int    `json:"id"`
+	User
+}
+
+func (u *UserWithPassword) toUser() User {
+	return User{Email: u.Email, ID: u.ID}
 }
 
 func (db *DB) CreateUser(email, password string) (User, error) {
@@ -25,12 +33,15 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	}
 
 	id := len(data.Users) + 1
-	user := User{Email: email, Password: string(passwordHash), ID: id}
+	user := UserWithPassword{
+		User:     User{Email: email, ID: id},
+		Password: string(passwordHash),
+	}
 	data.Users[id] = user
 
 	db.writeDB(data)
 
-	return user, nil
+	return user.toUser(), nil
 }
 
 func (db *DB) GetUsers() ([]User, error) {
@@ -42,7 +53,7 @@ func (db *DB) GetUsers() ([]User, error) {
 	users := make([]User, 0, len(data.Users))
 
 	for _, user := range data.Users {
-		users = append(users, user)
+		users = append(users, user.toUser())
 	}
 
 	return users, nil
