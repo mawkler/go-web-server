@@ -9,12 +9,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/joho/godotenv"
+
 	"github.com/mawkler/go-web-server/database"
 )
 
 type apiConfig struct {
 	DB             *database.DB
 	fileserverHits int
+	jwtSecret      string
 }
 
 type errResponse struct {
@@ -95,10 +98,13 @@ func main() {
 		os.Remove(databasePath)
 	}
 
+	godotenv.Load()
+	jwtSecret := os.Getenv("JWT_SECRET")
+
 	db := database.New(databasePath)
 	mux := http.NewServeMux()
 
-	cfg := apiConfig{fileserverHits: 0, DB: db}
+	cfg := apiConfig{fileserverHits: 0, DB: db, jwtSecret: jwtSecret}
 	fileServer := http.FileServer(http.Dir("."))
 	appHandler := http.StripPrefix("/app", fileServer)
 	mux.Handle("/app/*", cfg.middlewareMetricsInc(appHandler))

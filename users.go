@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/mawkler/go-web-server/authentication"
 	"github.com/mawkler/go-web-server/database"
 )
 
@@ -63,11 +65,13 @@ func (cfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		ExpiresInSeconds *int   `json:"expires_in_seconds"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
 	}
 
 	type response struct {
+		Token string `json:"token"`
 		database.User
 	}
 
@@ -92,6 +96,22 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := response{User: database.User{Email: user.Email, ID: user.ID}}
+	// TODO: is this the way?
+	expiresIn := 24 * time.Hour
+	if req.ExpiresInSeconds != nil {
+		expiresIn = time.Duration(*req.ExpiresInSeconds) * time.Second
+	}
+
+	jwt, err := authentication.CreateJwt(user.ID, cfg.jwtSecret, expiresIn)
+	if err != nil {
+		log.Printf("Failed to create jwt: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	res := response{
+		User:  database.User{Email: user.Email, ID: user.ID},
+		Token: jwt,
+	}
 	writeResponse(res, 200, w)
 }
