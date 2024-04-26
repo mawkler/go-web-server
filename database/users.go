@@ -17,8 +17,8 @@ type UserWithPassword struct {
 	User
 }
 
-func (u *UserWithPassword) toUser() User {
-	return User{Email: u.Email, ID: u.ID}
+func (u *UserWithPassword) toUser() *User {
+	return &User{Email: u.Email, ID: u.ID}
 }
 
 func (db *DB) CreateUser(email, password string) (User, error) {
@@ -39,9 +39,41 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	}
 	data.Users[id] = user
 
-	db.writeDB(data)
+	err = db.writeDB(data)
+	if err != nil {
+		return User{}, fmt.Errorf("failed to write user to database: %s", err)
+	}
 
-	return user.toUser(), nil
+	return *user.toUser(), nil
+}
+
+func (db *DB) UpdateUser(id int, email, password string) (*User, error) {
+	user, err := db.GetUser(id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user %s: %s", email, err)
+	}
+
+	if user == nil {
+		return nil, nil
+	}
+
+	data, err := db.loadDB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load database: %s", err)
+	}
+
+	updatedUser := UserWithPassword{
+		User:     User{Email: email, ID: id},
+		Password: password,
+	}
+	data.Users[id] = updatedUser
+
+	err = db.writeDB(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write user to database: %s", err)
+	}
+
+	return updatedUser.toUser(), nil
 }
 
 func (db *DB) GetUsers() ([]User, error) {
@@ -53,7 +85,7 @@ func (db *DB) GetUsers() ([]User, error) {
 	users := make([]User, 0, len(data.Users))
 
 	for _, user := range data.Users {
-		users = append(users, user.toUser())
+		users = append(users, *user.toUser())
 	}
 
 	return users, nil
@@ -67,7 +99,6 @@ func (db *DB) getUsersWithPasswords() ([]UserWithPassword, error) {
 
 	users := make([]UserWithPassword, 0, len(data.Users))
 
-	fmt.Println("data.Users = ", data.Users)
 	for _, user := range data.Users {
 		users = append(users, user)
 	}
@@ -90,17 +121,14 @@ func (db *DB) GetUser(id int) (*User, error) {
 	return nil, nil
 }
 
-func (db *DB) getUserWithPassword(email string) (*UserWithPassword, error) {
+func (db *DB) getUserByEmail(email string) (*UserWithPassword, error) {
 	users, err := db.getUsersWithPasswords()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %s", err)
 	}
 
-	fmt.Println("users = ", users)
 	for _, user := range users {
 		if user.Email == email {
-			fmt.Println("email = ", email)
-			fmt.Println("user.Email = ", user.Email)
 			return &user, nil
 		}
 	}

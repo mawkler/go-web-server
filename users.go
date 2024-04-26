@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/mawkler/go-web-server/authentication"
+	"github.com/mawkler/go-web-server/auth"
 	"github.com/mawkler/go-web-server/database"
 )
 
@@ -39,6 +41,48 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeResponse(user, 201, w)
+}
+
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeResponse("Query parameter `id` is non-numeric", 400, w)
+		return
+	}
+
+	// TODO: move to middleware
+	bearerToken := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(bearerToken, "Bearer ")
+	err = auth.Authorize(token, cfg.jwtSecret)
+	if err != nil {
+		log.Printf("Invalid jwt: %s", err)
+		w.WriteHeader(403)
+		return
+	}
+
+	type request struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	req := request{}
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
+		return
+	}
+
+	user, err := cfg.DB.UpdateUser(id, req.Email, req.Password)
+	if err != nil {
+		log.Printf("Failed to update user: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	if user == nil {
+		writeResponse("User not found", 404, w)
+	} else {
+		writeResponse(user, 200, w)
+	}
 }
 
 func (cfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +146,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		expiresIn = time.Duration(*req.ExpiresInSeconds) * time.Second
 	}
 
-	jwt, err := authentication.CreateJwt(user.ID, cfg.jwtSecret, expiresIn)
+	jwt, err := auth.CreateJwt(user.ID, cfg.jwtSecret, expiresIn)
 	if err != nil {
 		log.Printf("Failed to create jwt: %s", err)
 		w.WriteHeader(401)

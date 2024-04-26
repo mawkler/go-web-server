@@ -26,6 +26,13 @@ POST http://localhost:8080/api/users
   "password": "secure_password"
 }
 
+PUT http://localhost:8080/api/users/1
+Authorization: Bearer <token>
+{
+  "email": "new@email",
+  "password": "new_password"
+}
+
 POST http://localhost:8080/api/login
 {
   "email": "foobar@baz",

@@ -123,6 +123,7 @@ func main() {
 	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
 	mux.HandleFunc("GET /api/users", cfg.handlerGetUsers)
 	mux.HandleFunc("GET /api/users/{id}", cfg.handlerGetUser)
+	mux.HandleFunc("PUT /api/users/{id}", cfg.handlerUpdateUser)
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
 
 	corsMux := middlewareCors(mux)
