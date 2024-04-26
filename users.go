@@ -1,16 +1,43 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/mawkler/go-web-server/auth"
 	"github.com/mawkler/go-web-server/database"
 )
+
+type contextKey string
+
+const authorizedJWTKey contextKey = "authorizedJWT"
+
+func (cfg *apiConfig) middlewareAuthorization(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		bearerToken := r.Header.Get("Authorization")
+		tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
+
+		token, err := auth.Authorize(tokenString, cfg.jwtSecret)
+		fmt.Println("err = ", err)
+		if err != nil {
+			log.Printf("Invalid jwt: %s", err)
+			w.WriteHeader(401)
+			return
+		}
+
+		context := context.WithValue(r.Context(), authorizedJWTKey, token)
+		r = r.WithContext(context)
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, r *http.Request) {
 	chirps, err := cfg.DB.GetUsers()
@@ -43,13 +70,10 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 }
 
 func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
-	// TODO: move to middleware
-	bearerToken := r.Header.Get("Authorization")
-	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
-	token, err := auth.Authorize(tokenString, cfg.jwtSecret)
-	if err != nil {
-		log.Printf("Invalid jwt: %s", err)
-		w.WriteHeader(401)
+	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
+	if !ok {
+		log.Printf("context does not contain authorized access token")
+		w.WriteHeader(500)
 		return
 	}
 
@@ -57,6 +81,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.Printf("token has no subject: %s", err)
 		w.WriteHeader(403)
+		return
 	}
 
 	id, err := strconv.Atoi(idString)
@@ -121,7 +146,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type response struct {
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 		database.User
 	}
 
@@ -146,22 +172,28 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: is this the way?
-	expiresIn := 24 * time.Hour
-	if req.ExpiresInSeconds != nil {
-		expiresIn = time.Duration(*req.ExpiresInSeconds) * time.Second
+	accessToken, err := auth.CreateAccessToken(user.ID, cfg.jwtSecret)
+	if err != nil {
+		log.Printf("Failed to create access token: %s", err)
+		w.WriteHeader(401)
+		return
 	}
 
-	jwt, err := auth.CreateJwt(user.ID, cfg.jwtSecret, expiresIn)
+	refreshToken, err := auth.CreateRefreshToken(user.ID, cfg.jwtSecret)
 	if err != nil {
-		log.Printf("Failed to create jwt: %s", err)
+		log.Printf("Failed to create refresh token: %s", err)
 		w.WriteHeader(401)
 		return
 	}
 
 	res := response{
-		User:  database.User{Email: user.Email, ID: user.ID},
-		Token: jwt,
+		User:         database.User{Email: user.Email, ID: user.ID},
+		Token:        accessToken,
+		RefreshToken: refreshToken,
 	}
 	writeResponse(res, 200, w)
 }
+
+// func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+// 	bearerToken := r.Header.Get("Authorization")
+// }

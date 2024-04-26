@@ -16,8 +16,8 @@ import (
 
 type apiConfig struct {
 	DB             *database.DB
-	fileserverHits int
 	jwtSecret      string
+	fileserverHits int
 }
 
 type errResponse struct {
@@ -123,8 +123,10 @@ func main() {
 	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
 	mux.HandleFunc("GET /api/users", cfg.handlerGetUsers)
 	mux.HandleFunc("GET /api/users/{id}", cfg.handlerGetUser)
-	mux.HandleFunc("PUT /api/users", cfg.handlerUpdateUser)
+	mux.Handle("PUT /api/users", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerUpdateUser)))
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
+	// mux.HandleFunc("POST /api/refresh", cfg.handlerRefresh)
+	// Add the POST /api/revoke endpoint
 
 	corsMux := middlewareCors(mux)
 	port := "8080"

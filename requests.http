@@ -20,19 +20,21 @@ GET http://localhost:8080/api/users
 
 GET http://localhost:8080/api/users/1
 
+# Create user
 POST http://localhost:8080/api/users
 {
   "email": "foobar@baz",
   "password": "secure_password"
 }
 
-PUT http://localhost:8080/api/users/1
+PUT http://localhost:8080/api/users
 Authorization: Bearer <token>
 {
   "email": "new@email",
   "password": "new_password"
 }
 
+# Login
 POST http://localhost:8080/api/login
 {
   "email": "foobar@baz",

@@ -7,10 +7,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func CreateJwt(userID int, jwtSecret string, expiresIn time.Duration) (string, error) {
+func createJwt(userID int, issuer, jwtSecret string, expiresIn time.Duration) (string, error) {
 	now := time.Now().UTC()
 	claims := jwt.RegisteredClaims{
-		Issuer:    "chirpy",
+		Issuer:    issuer,
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(expiresIn)),
 		Subject:   fmt.Sprint(userID),
@@ -23,6 +23,14 @@ func CreateJwt(userID int, jwtSecret string, expiresIn time.Duration) (string, e
 	}
 
 	return signedToken, nil
+}
+
+func CreateAccessToken(userID int, jwtSecret string) (string, error) {
+	return createJwt(userID, "chirpy-access", jwtSecret, 1*time.Hour)
+}
+
+func CreateRefreshToken(userID int, jwtSecret string) (string, error) {
+	return createJwt(userID, "chirpy-refresh", jwtSecret, 60*24*time.Hour)
 }
 
 func Authorize(tokenString string, jwtSecret string) (*jwt.Token, error) {
