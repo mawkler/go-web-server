@@ -38,3 +38,10 @@ POST http://localhost:8080/api/login
   "email": "foobar@baz",
   "password": "secure_password"
 }
+
+# Login with updated credentials
+POST http://localhost:8080/api/login
+{
+  "email": "new@email",
+  "password": "new_password"
+}

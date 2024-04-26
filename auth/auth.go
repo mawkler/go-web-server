@@ -25,12 +25,12 @@ func CreateJwt(userID int, jwtSecret string, expiresIn time.Duration) (string, e
 	return signedToken, nil
 }
 
-func Authorize(tokenString string, jwtSecret string) error {
-	_, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+func Authorize(tokenString string, jwtSecret string) (*jwt.Token, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(jwtSecret), nil
 	})
 	if err != nil {
-		return fmt.Errorf("invalid token: %s", err)
+		return nil, fmt.Errorf("invalid token: %s", err)
 	}
-	return nil
+	return token, nil
 }

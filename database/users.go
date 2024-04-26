@@ -21,15 +21,24 @@ func (u *UserWithPassword) toUser() *User {
 	return &User{Email: u.Email, ID: u.ID}
 }
 
+func hashPassword(password string) (string, error) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 4)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %s", err)
+	}
+
+	return string(passwordHash), nil
+}
+
 func (db *DB) CreateUser(email, password string) (User, error) {
 	data, err := db.loadDB()
 	if err != nil {
 		return User{}, fmt.Errorf("failed to load database: %s", err)
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 4)
+	passwordHash, err := hashPassword(password)
 	if err != nil {
-		return User{}, fmt.Errorf("failed to hash password: %s", err)
+		return User{}, err
 	}
 
 	id := len(data.Users) + 1
@@ -62,9 +71,14 @@ func (db *DB) UpdateUser(id int, email, password string) (*User, error) {
 		return nil, fmt.Errorf("failed to load database: %s", err)
 	}
 
+	passwordHash, err := hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
 	updatedUser := UserWithPassword{
 		User:     User{Email: email, ID: id},
-		Password: password,
+		Password: passwordHash,
 	}
 	data.Users[id] = updatedUser
 

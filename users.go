@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -44,18 +43,25 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 }
 
 func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
+	// TODO: move to middleware
+	bearerToken := r.Header.Get("Authorization")
+	tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
+	token, err := auth.Authorize(tokenString, cfg.jwtSecret)
 	if err != nil {
-		writeResponse("Query parameter `id` is non-numeric", 400, w)
+		log.Printf("Invalid jwt: %s", err)
+		w.WriteHeader(401)
 		return
 	}
 
-	// TODO: move to middleware
-	bearerToken := r.Header.Get("Authorization")
-	token := strings.TrimPrefix(bearerToken, "Bearer ")
-	err = auth.Authorize(token, cfg.jwtSecret)
+	idString, err := token.Claims.GetSubject()
 	if err != nil {
-		log.Printf("Invalid jwt: %s", err)
+		log.Printf("token has no subject: %s", err)
+		w.WriteHeader(403)
+	}
+
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		log.Print("JWT subject (user ID) is non-numeric")
 		w.WriteHeader(403)
 		return
 	}
