@@ -19,13 +19,15 @@ type contextKey string
 
 const authorizedJWTKey contextKey = "authorizedJWT"
 
+func getBearerToken(r *http.Request) string {
+	bearerToken := r.Header.Get("Authorization")
+	return strings.TrimPrefix(bearerToken, "Bearer ")
+}
+
 func (cfg *apiConfig) middlewareAuthorization(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		bearerToken := r.Header.Get("Authorization")
-		tokenString := strings.TrimPrefix(bearerToken, "Bearer ")
-
+		tokenString := getBearerToken(r)
 		token, err := auth.Authorize(tokenString, cfg.jwtSecret)
-		fmt.Println("err = ", err)
 		if err != nil {
 			log.Printf("Invalid jwt: %s", err)
 			w.WriteHeader(401)
@@ -77,10 +79,23 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		log.Printf("failed to get issuer from access token: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	if issuer != "chirpy-access" {
+		log.Printf("jwt is not an access token. Issuer: %s", issuer)
+		w.WriteHeader(401)
+		return
+	}
+
 	idString, err := token.Claims.GetSubject()
 	if err != nil {
 		log.Printf("token has no subject: %s", err)
-		w.WriteHeader(403)
+		w.WriteHeader(401)
 		return
 	}
 
@@ -172,7 +187,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, err := auth.CreateAccessToken(user.ID, cfg.jwtSecret)
+	accessToken, err := auth.CreateAccessToken(user.ID, cfg.jwtSecret, req.ExpiresInSeconds)
 	if err != nil {
 		log.Printf("Failed to create access token: %s", err)
 		w.WriteHeader(401)
@@ -194,6 +209,91 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	writeResponse(res, 200, w)
 }
 
-// func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
-// 	bearerToken := r.Header.Get("Authorization")
-// }
+func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
+	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
+	if !ok {
+		log.Printf("context does not contain authorized access token")
+		w.WriteHeader(500)
+		return
+	}
+
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		log.Printf("failed to get issuer from refresh token: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	if issuer != "chirpy-refresh" {
+		log.Printf("jwt is not a refresh token")
+		w.WriteHeader(401)
+		return
+	}
+
+	// TODO
+}
+
+func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+	type response struct {
+		Token string `json:"token"`
+	}
+
+	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
+	if !ok {
+		log.Printf("context does not contain authorized access token")
+		w.WriteHeader(500)
+		return
+	}
+
+	issuer, err := token.Claims.GetIssuer()
+	if err != nil {
+		log.Printf("failed to get issuer from refresh token: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	if issuer != "chirpy-refresh" {
+		log.Printf("jwt is not a refresh token")
+		w.WriteHeader(401)
+		return
+	}
+
+	revocations, err := cfg.DB.GetRevocations()
+	if err != nil {
+		log.Printf("failed to get revocations: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	bearerTokenString := getBearerToken(r)
+	for _, revocation := range revocations {
+		if revocation == bearerTokenString {
+			writeResponse("refresh token has been revoked", 401, w)
+			return
+		}
+	}
+
+	userID, err := token.Claims.GetSubject()
+	if err != nil {
+		log.Printf("token has no subject: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	id, err := strconv.Atoi(userID)
+	if err != nil {
+		log.Print("JWT subject (user ID) is non-numeric")
+		w.WriteHeader(401)
+		return
+	}
+
+	expiresInSeconds := 60 * 60
+	refreshToken, err := auth.CreateAccessToken(id, cfg.jwtSecret, &expiresInSeconds)
+	if err != nil {
+		log.Printf("Failed to create access token: %s", err)
+		w.WriteHeader(401)
+		return
+	}
+
+	writeResponse(response{Token: refreshToken}, 200, w)
+}

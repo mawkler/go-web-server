@@ -25,8 +25,14 @@ func createJwt(userID int, issuer, jwtSecret string, expiresIn time.Duration) (s
 	return signedToken, nil
 }
 
-func CreateAccessToken(userID int, jwtSecret string) (string, error) {
-	return createJwt(userID, "chirpy-access", jwtSecret, 1*time.Hour)
+func CreateAccessToken(userID int, jwtSecret string, expiresInSeconds *int) (string, error) {
+	expiresIn := 1 * time.Hour
+
+	if expiresInSeconds != nil {
+		expiresIn = time.Duration(*expiresInSeconds) * time.Second
+	}
+
+	return createJwt(userID, "chirpy-access", jwtSecret, expiresIn)
 }
 
 func CreateRefreshToken(userID int, jwtSecret string) (string, error) {

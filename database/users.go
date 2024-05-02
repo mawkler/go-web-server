@@ -135,6 +135,15 @@ func (db *DB) GetUser(id int) (*User, error) {
 	return nil, nil
 }
 
+func (db *DB) GetRevocations() ([]string, error) {
+	data, err := db.loadDB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revocations: %s", err)
+	}
+
+	return data.Revocations, nil
+}
+
 func (db *DB) getUserByEmail(email string) (*UserWithPassword, error) {
 	users, err := db.getUsersWithPasswords()
 	if err != nil {

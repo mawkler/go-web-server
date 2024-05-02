@@ -16,8 +16,9 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp            `json:"chirps"`
-	Users  map[int]UserWithPassword `json:"users"`
+	Chirps      map[int]Chirp            `json:"chirps"`
+	Users       map[int]UserWithPassword `json:"users"`
+	Revocations []string                 `json:"revocations"`
 }
 
 func New(path string) *DB {
@@ -30,7 +31,7 @@ func (db *DB) ensureDB() error {
 		return errors.New("failed to create database file")
 	}
 
-	_, err = io.WriteString(f, `{"chirps": {}, "users": {}}`)
+	_, err = io.WriteString(f, `{"chirps": {}, "users": {}, "revocations": []}`)
 	if err != nil {
 		return fmt.Errorf("failed to write to file: %s", err)
 	}

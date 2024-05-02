@@ -125,8 +125,8 @@ func main() {
 	mux.HandleFunc("GET /api/users/{id}", cfg.handlerGetUser)
 	mux.Handle("PUT /api/users", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerUpdateUser)))
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
-	// mux.HandleFunc("POST /api/refresh", cfg.handlerRefresh)
-	// Add the POST /api/revoke endpoint
+	mux.Handle("POST /api/refresh", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerRefresh)))
+	mux.Handle("POST /api/revoke", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerRevoke)))
 
 	corsMux := middlewareCors(mux)
 	port := "8080"
