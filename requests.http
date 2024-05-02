@@ -44,6 +44,10 @@ POST http://localhost:8080/api/login
 # Login with updated credentials
 POST http://localhost:8080/api/login
 {
-  "email": "new@email",
-  "password": "new_password"
+  "email": "mike@bettercall.com",
+  "expires_in_seconds": 15,
+  "password": "654321"
 }
+
+POST http://localhost:8080/api/refresh
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjaGlycHktYWNjZXNzIiwic3ViIjoiMSIsImV4cCI6MTcxNDM5Mzg4OSwiaWF0IjoxNzE0MzkzODg5fQ.MRQL7UqG-t45LFxSkuF9Tdv4CfBrBXh4_kzJ7wYGb9Q
