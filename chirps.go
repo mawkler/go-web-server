@@ -78,17 +78,9 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	userIDString, err := token.Claims.GetSubject()
+	userID, err := getSubject(token, w)
 	if err != nil {
-		log.Printf("failed to get subject from token: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-
-	userID, err := strconv.Atoi(userIDString)
-	if err != nil {
-		log.Print("token subject is non-numeric")
-		w.WriteHeader(403)
+		log.Print(err)
 		return
 	}
 
@@ -97,4 +89,45 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		w.WriteHeader(500)
 	}
 	writeResponse(chirp, 201, w)
+}
+
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	chirpID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeResponse("Query parameter `id` is non-numeric", 400, w)
+		return
+	}
+
+	chirp, err := cfg.DB.GetChirp(chirpID)
+	if err != nil {
+		log.Printf("tried to delete chirp %d, but something went wrong when retrieving it: %s", chirpID, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
+	if !ok || token == nil {
+		log.Printf("context does not contain authorized access token")
+		w.WriteHeader(500)
+		return
+	}
+
+	userID, err := getSubject(token, w)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	if chirp.AuthorID != userID {
+		w.WriteHeader(403)
+		return
+	}
+
+	if err := cfg.DB.DeleteChirp(chirpID); err != nil {
+		log.Printf("could not delete chirp %d: %s", chirpID, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(204)
 }

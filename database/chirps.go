@@ -55,3 +55,18 @@ func (db *DB) GetChirp(id int) (*Chirp, error) {
 
 	return nil, nil
 }
+
+func (db *DB) DeleteChirp(id int) error {
+	data, err := db.loadDB()
+	if err != nil {
+		return errors.New("failed to load database")
+	}
+
+	delete(data.Chirps, id)
+
+	if err := db.writeDB(data); err != nil {
+		return fmt.Errorf("failed to delete chirp %d: %s", id, err)
+	}
+
+	return nil
+}

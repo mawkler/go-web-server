@@ -55,7 +55,7 @@ func (db *DB) DeleteRefreshToken(refreshToken string) error {
 
 	delete(data.RefreshTokens, refreshToken)
 	if err := db.writeDB(data); err != nil {
-		return fmt.Errorf("failed to revoke refresh token: %s", err)
+		return fmt.Errorf("failed to delete refresh token: %s", err)
 	}
 
 	return nil

@@ -8,8 +8,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 
 	"github.com/mawkler/go-web-server/auth"
@@ -41,6 +43,22 @@ func (cfg *apiConfig) middlewareAuthorization(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func getSubject(token *jwt.Token, w http.ResponseWriter) (int, error) {
+	userIDString, err := token.Claims.GetSubject()
+	if err != nil {
+		w.WriteHeader(500)
+		return 0, fmt.Errorf("failed to get subject from token: %s", err)
+	}
+
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		w.WriteHeader(403)
+		return 0, fmt.Errorf("token subject is non-numeric")
+	}
+
+	return userID, nil
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -137,6 +155,7 @@ func main() {
 	mux.HandleFunc("/api/reset", cfg.handlerReset)
 	mux.HandleFunc("/api/validate_chirp", cfg.handlerValidateChirp)
 	mux.Handle("POST /api/chirps", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerCreateChirp)))
+	mux.Handle("DELETE /api/chirps/{id}", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerDeleteChirp)))
 	mux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirp)
 	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
