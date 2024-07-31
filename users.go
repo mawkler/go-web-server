@@ -232,7 +232,7 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := cfg.DB.RevokeRefreshToken(token.Raw); err != nil {
+	if err := cfg.DB.DeleteRefreshToken(token.Raw); err != nil {
 		log.Printf("failed to revoke refresh token %s: %s", token.Raw, err)
 		w.WriteHeader(500)
 		return
