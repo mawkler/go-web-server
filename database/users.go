@@ -3,9 +3,17 @@ package database
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// TODO: move token stuff to a separate file
+type RefreshToken struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Token     string    `json:"token"`
+	UserID    int       `json:"user_id"`
+}
 
 type User struct {
 	Email string `json:"email"`
@@ -135,13 +143,53 @@ func (db *DB) GetUser(id int) (*User, error) {
 	return nil, nil
 }
 
-func (db *DB) GetRevocations() ([]string, error) {
+func (db *DB) SaveRefreshToken(refreshToken string, userID int, expiresIn time.Duration) error {
 	data, err := db.loadDB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get revocations: %s", err)
+		return fmt.Errorf("failed to load database: %s", err)
 	}
 
-	return data.Revocations, nil
+	expiresAt := time.Now().Add(time.Second * expiresIn)
+	token := RefreshToken{
+		Token:     refreshToken,
+		UserID:    userID,
+		ExpiresAt: expiresAt,
+	}
+
+	data.RefreshTokens[refreshToken] = token
+	if err := db.writeDB(data); err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %s", err)
+	}
+
+	return nil
+}
+
+func (db *DB) RevokeRefreshToken(refreshToken string) error {
+	data, err := db.loadDB()
+	if err != nil {
+		return fmt.Errorf("failed to load database: %s", err)
+	}
+
+	delete(data.RefreshTokens, refreshToken)
+	if err := db.writeDB(data); err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %s", err)
+	}
+
+	return nil
+}
+
+func (db *DB) GetRefreshToken(refreshToken string) (*RefreshToken, error) {
+	data, err := db.loadDB()
+	if err != nil {
+		return nil, errors.New("failed to load database")
+	}
+
+	token, exists := data.RefreshTokens[refreshToken]
+	if exists {
+		return &token, nil
+	}
+
+	return nil, nil
 }
 
 func (db *DB) getUserByEmail(email string) (*FullUser, error) {

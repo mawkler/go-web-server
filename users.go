@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
@@ -201,6 +201,8 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg.DB.SaveRefreshToken(refreshToken, user.ID, time.Hour*24*60)
+
 	res := response{
 		User:         database.User{Email: user.Email, ID: user.ID},
 		Token:        accessToken,
@@ -230,7 +232,13 @@ func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO
+	if err := cfg.DB.RevokeRefreshToken(token.Raw); err != nil {
+		log.Printf("failed to revoke refresh token %s: %s", token.Raw, err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(204)
 }
 
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
@@ -258,19 +266,24 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	revocations, err := cfg.DB.GetRevocations()
+	refreshToken, err := cfg.DB.GetRefreshToken(token.Raw)
 	if err != nil {
-		log.Printf("failed to get revocations: %s", err)
+		log.Printf("failed to get refresh token from database: %s", err)
 		w.WriteHeader(500)
 		return
 	}
 
-	bearerTokenString := getBearerToken(r)
-	for _, revocation := range revocations {
-		if revocation == bearerTokenString {
-			writeResponse("refresh token has been revoked", 401, w)
-			return
-		}
+	if refreshToken == nil {
+		log.Print("refresh token doesn't exist")
+		w.WriteHeader(401)
+		return
+	}
+
+	tokenIsExpired := refreshToken.ExpiresAt.Before(time.Now())
+	if tokenIsExpired {
+		log.Print("refresh token has expired")
+		w.WriteHeader(401)
+		return
 	}
 
 	userID, err := token.Claims.GetSubject()
@@ -288,12 +301,12 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiresInSeconds := 60 * 60
-	refreshToken, err := auth.CreateAccessToken(id, cfg.jwtSecret, &expiresInSeconds)
+	newRefreshToken, err := auth.CreateAccessToken(id, cfg.jwtSecret, &expiresInSeconds)
 	if err != nil {
-		log.Printf("Failed to create access token: %s", err)
+		log.Printf("failed to create access token: %s", err)
 		w.WriteHeader(401)
 		return
 	}
 
-	writeResponse(response{Token: refreshToken}, 200, w)
+	writeResponse(response{Token: newRefreshToken}, 200, w)
 }
