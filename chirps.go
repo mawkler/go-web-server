@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +64,13 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		Body string `json:"body"`
 	}
 
+	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
+	if !ok || token == nil {
+		log.Printf("context does not contain authorized access token")
+		w.WriteHeader(500)
+		return
+	}
+
 	req := request{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -68,7 +78,21 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	chirp, err := cfg.DB.CreateChirp(req.Body)
+	userIDString, err := token.Claims.GetSubject()
+	if err != nil {
+		log.Printf("failed to get subject from token: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		log.Print("token subject is non-numeric")
+		w.WriteHeader(403)
+		return
+	}
+
+	chirp, err := cfg.DB.CreateChirp(req.Body, userID)
 	if err != nil {
 		w.WriteHeader(500)
 	}

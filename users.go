@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -22,23 +21,6 @@ const authorizedJWTKey contextKey = "authorizedJWT"
 func getBearerToken(r *http.Request) string {
 	bearerToken := r.Header.Get("Authorization")
 	return strings.TrimPrefix(bearerToken, "Bearer ")
-}
-
-func (cfg *apiConfig) middlewareAuthorization(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tokenString := getBearerToken(r)
-		token, err := auth.Authorize(tokenString, cfg.jwtSecret)
-		if err != nil {
-			log.Printf("Invalid jwt: %s", err)
-			w.WriteHeader(401)
-			return
-		}
-
-		context := context.WithValue(r.Context(), authorizedJWTKey, token)
-		r = r.WithContext(context)
-
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, r *http.Request) {
@@ -247,7 +229,7 @@ func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, ok := r.Context().Value(authorizedJWTKey).(*jwt.Token)
-	if !ok {
+	if !ok || token == nil {
 		log.Printf("context does not contain authorized access token")
 		w.WriteHeader(500)
 		return

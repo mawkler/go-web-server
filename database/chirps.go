@@ -6,18 +6,19 @@ import (
 )
 
 type Chirp struct {
-	Body string `json:"body"`
-	ID   int    `json:"id"`
+	Body     string `json:"body"`
+	ID       int    `json:"id"`
+	AuthorID int    `json:"author_id"`
 }
 
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, authorID int) (Chirp, error) {
 	data, err := db.loadDB()
 	if err != nil {
 		return Chirp{}, fmt.Errorf("failed to load database: %s", err)
 	}
 
 	id := len(data.Chirps) + 1
-	chirp := Chirp{Body: body, ID: id}
+	chirp := Chirp{Body: body, ID: id, AuthorID: authorID}
 	data.Chirps[id] = chirp
 
 	db.writeDB(data)

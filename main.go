@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"github.com/mawkler/go-web-server/auth"
 	"github.com/mawkler/go-web-server/database"
 )
 
@@ -22,6 +24,23 @@ type apiConfig struct {
 
 type errResponse struct {
 	Error string `json:"error"`
+}
+
+func (cfg *apiConfig) middlewareAuthorization(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString := getBearerToken(r)
+		token, err := auth.Authorize(tokenString, cfg.jwtSecret)
+		if err != nil {
+			log.Printf("Invalid jwt: %s", err)
+			w.WriteHeader(401)
+			return
+		}
+
+		context := context.WithValue(r.Context(), authorizedJWTKey, token)
+		r = r.WithContext(context)
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -117,7 +136,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", cfg.handlerMetrics)
 	mux.HandleFunc("/api/reset", cfg.handlerReset)
 	mux.HandleFunc("/api/validate_chirp", cfg.handlerValidateChirp)
-	mux.HandleFunc("POST /api/chirps", cfg.handlerCreateChirp)
+	mux.Handle("POST /api/chirps", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerCreateChirp)))
 	mux.HandleFunc("GET /api/chirps", cfg.handlerGetChirps)
 	mux.HandleFunc("GET /api/chirps/{id}", cfg.handlerGetChirp)
 	mux.HandleFunc("POST /api/users", cfg.handlerCreateUser)
