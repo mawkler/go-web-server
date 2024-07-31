@@ -16,9 +16,9 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps      map[int]Chirp            `json:"chirps"`
-	Users       map[int]UserWithPassword `json:"users"`
-	Revocations []string                 `json:"revocations"`
+	Chirps      map[int]Chirp    `json:"chirps"`
+	Users       map[int]FullUser `json:"users"`
+	Revocations []string         `json:"revocations"`
 }
 
 func New(path string) *DB {

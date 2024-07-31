@@ -12,12 +12,12 @@ type User struct {
 	ID    int    `json:"id"`
 }
 
-type UserWithPassword struct {
+type FullUser struct {
 	Password string `json:"password"`
 	User
 }
 
-func (u *UserWithPassword) toUser() *User {
+func (u *FullUser) toUser() *User {
 	return &User{Email: u.Email, ID: u.ID}
 }
 
@@ -42,7 +42,7 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 	}
 
 	id := len(data.Users) + 1
-	user := UserWithPassword{
+	user := FullUser{
 		User:     User{Email: email, ID: id},
 		Password: string(passwordHash),
 	}
@@ -76,7 +76,7 @@ func (db *DB) UpdateUser(id int, email, password string) (*User, error) {
 		return nil, err
 	}
 
-	updatedUser := UserWithPassword{
+	updatedUser := FullUser{
 		User:     User{Email: email, ID: id},
 		Password: passwordHash,
 	}
@@ -105,13 +105,13 @@ func (db *DB) GetUsers() ([]User, error) {
 	return users, nil
 }
 
-func (db *DB) getUsersWithPasswords() ([]UserWithPassword, error) {
+func (db *DB) getUsersWithPasswords() ([]FullUser, error) {
 	data, err := db.loadDB()
 	if err != nil {
 		return nil, errors.New("failed to load database")
 	}
 
-	users := make([]UserWithPassword, 0, len(data.Users))
+	users := make([]FullUser, 0, len(data.Users))
 
 	for _, user := range data.Users {
 		users = append(users, user)
@@ -144,7 +144,7 @@ func (db *DB) GetRevocations() ([]string, error) {
 	return data.Revocations, nil
 }
 
-func (db *DB) getUserByEmail(email string) (*UserWithPassword, error) {
+func (db *DB) getUserByEmail(email string) (*FullUser, error) {
 	users, err := db.getUsersWithPasswords()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %s", err)
