@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-func (cfg *apiConfig) handlerUpgraded(w http.ResponseWriter, r *http.Request) {
+func (cfg *APIConfig) HandlerUpgraded(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Event string `json:"event"`
 		Data  struct {

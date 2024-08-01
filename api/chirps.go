@@ -1,15 +1,34 @@
-package main
+package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
+func cleanMessage(msg string) string {
+	profanities := []string{"kerfuffle", "sharbert", "fornax"}
+	newWords := []string{}
+
+	for _, w := range strings.Split(msg, " ") {
+		newWord := w
+		for _, p := range profanities {
+			if strings.ToLower(w) == p {
+				newWord = "****"
+			}
+		}
+		newWords = append(newWords, newWord)
+	}
+
+	return strings.Join(newWords, " ")
+}
+
+func (cfg *APIConfig) HandlerValidateChirp(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Body string `json:"body"`
 	}
@@ -29,37 +48,23 @@ func (cfg *apiConfig) handlerValidateChirp(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.DB.GetChirps()
+func getSubject(token *jwt.Token, w http.ResponseWriter) (int, error) {
+	userIDString, err := token.Claims.GetSubject()
 	if err != nil {
 		w.WriteHeader(500)
+		return 0, fmt.Errorf("failed to get subject from token: %s", err)
 	}
-	writeResponse(chirps, 200, w)
+
+	userID, err := strconv.Atoi(userIDString)
+	if err != nil {
+		w.WriteHeader(403)
+		return 0, fmt.Errorf("token subject is non-numeric")
+	}
+
+	return userID, nil
 }
 
-func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		writeResponse("Query parameter `id` is non-numeric", 400, w)
-		return
-	}
-
-	chirp, err := cfg.DB.GetChirp(id)
-	if err != nil {
-		w.WriteHeader(500)
-		return
-	}
-
-	if chirp == nil {
-		w.WriteHeader(404)
-		return
-	}
-
-	writeResponse(chirp, 200, w)
-
-}
-
-func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *APIConfig) HandlerCreateChirp(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Body string `json:"body"`
 	}
@@ -91,7 +96,7 @@ func (cfg *apiConfig) handlerCreateChirp(w http.ResponseWriter, r *http.Request)
 	writeResponse(chirp, 201, w)
 }
 
-func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *APIConfig) HandlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
 	chirpID, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		writeResponse("Query parameter `id` is non-numeric", 400, w)
@@ -130,4 +135,33 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(204)
+}
+
+func (cfg *APIConfig) HandlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.DB.GetChirps()
+	if err != nil {
+		w.WriteHeader(500)
+	}
+	writeResponse(chirps, 200, w)
+}
+
+func (cfg *APIConfig) HandlerGetChirp(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		writeResponse("Query parameter `id` is non-numeric", 400, w)
+		return
+	}
+
+	chirp, err := cfg.DB.GetChirp(id)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+
+	if chirp == nil {
+		w.WriteHeader(404)
+		return
+	}
+
+	writeResponse(chirp, 200, w)
 }
