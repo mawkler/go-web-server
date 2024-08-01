@@ -165,6 +165,10 @@ func main() {
 	mux.HandleFunc("POST /api/login", cfg.handlerLogin)
 	mux.Handle("POST /api/refresh", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerRefresh)))
 	mux.Handle("POST /api/revoke", cfg.middlewareAuthorization(http.HandlerFunc(cfg.handlerRevoke)))
+	// Webhooks
+
+	// TODO: move handlers to `api` package?
+	mux.HandleFunc("POST /api/polka/webhooks", cfg.handlerUpgraded)
 
 	corsMux := middlewareCors(mux)
 	port := "8080"

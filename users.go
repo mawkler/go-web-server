@@ -23,7 +23,7 @@ func getBearerToken(r *http.Request) string {
 	return strings.TrimPrefix(bearerToken, "Bearer ")
 }
 
-func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerGetUsers(w http.ResponseWriter, _ *http.Request) {
 	chirps, err := cfg.DB.GetUsers()
 	if err != nil {
 		w.WriteHeader(500)
@@ -44,7 +44,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user, err := cfg.DB.CreateUser(req.Email, req.Password)
+	user, err := cfg.DB.CreateUser(req.Email, req.Password, false)
 	if err != nil {
 		log.Printf("Failed to create user %s: %s", req.Email, err)
 		w.WriteHeader(500)
@@ -120,18 +120,18 @@ func (cfg *apiConfig) handlerGetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chirp, err := cfg.DB.GetUser(id)
+	user, err := cfg.DB.GetUser(id)
 	if err != nil {
 		w.WriteHeader(500)
 		return
 	}
 
-	if chirp == nil {
+	if user == nil {
 		w.WriteHeader(404)
 		return
 	}
 
-	writeResponse(chirp, 200, w)
+	writeResponse(user, 200, w)
 
 }
 
@@ -186,7 +186,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	cfg.DB.SaveRefreshToken(refreshToken, user.ID, time.Hour*24*60)
 
 	res := response{
-		User:         database.User{Email: user.Email, ID: user.ID},
+		User:         database.User{Email: user.Email, ID: user.ID, IsChirpyRed: user.IsChirpyRed},
 		Token:        accessToken,
 		RefreshToken: refreshToken,
 	}

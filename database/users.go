@@ -8,8 +8,9 @@ import (
 )
 
 type User struct {
-	Email string `json:"email"`
-	ID    int    `json:"id"`
+	Email       string `json:"email"`
+	ID          int    `json:"id"`
+	IsChirpyRed bool   `json:"is_chirpy_red"`
 }
 
 type FullUser struct {
@@ -18,7 +19,7 @@ type FullUser struct {
 }
 
 func (u *FullUser) toUser() *User {
-	return &User{Email: u.Email, ID: u.ID}
+	return &User{Email: u.Email, ID: u.ID, IsChirpyRed: u.IsChirpyRed}
 }
 
 func hashPassword(password string) (string, error) {
@@ -30,7 +31,7 @@ func hashPassword(password string) (string, error) {
 	return string(passwordHash), nil
 }
 
-func (db *DB) CreateUser(email, password string) (User, error) {
+func (db *DB) CreateUser(email, password string, isChirpyRed bool) (User, error) {
 	data, err := db.loadDB()
 	if err != nil {
 		return User{}, fmt.Errorf("failed to load database: %s", err)
@@ -43,7 +44,7 @@ func (db *DB) CreateUser(email, password string) (User, error) {
 
 	id := len(data.Users) + 1
 	user := FullUser{
-		User:     User{Email: email, ID: id},
+		User:     User{Email: email, ID: id, IsChirpyRed: isChirpyRed},
 		Password: string(passwordHash),
 	}
 	data.Users[id] = user
@@ -76,8 +77,9 @@ func (db *DB) UpdateUser(id int, email, password string) (*User, error) {
 		return nil, err
 	}
 
+	user.Email = email
 	updatedUser := FullUser{
-		User:     User{Email: email, ID: id},
+		User:     *user,
 		Password: passwordHash,
 	}
 	data.Users[id] = updatedUser
@@ -148,4 +150,20 @@ func (db *DB) getUserByEmail(email string) (*FullUser, error) {
 	}
 
 	return nil, nil
+}
+
+func (db *DB) UpgradeUser(id int) error {
+	data, err := db.loadDB()
+	if err != nil {
+		return fmt.Errorf("failed to upgrade user: %s", err)
+	}
+
+	user := data.Users[id]
+	user.IsChirpyRed = true
+	data.Users[id] = user
+
+	fmt.Println("data = ", data)
+
+	db.writeDB(data)
+	return nil
 }
