@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func (cfg *APIConfig) HandlerUpgraded(w http.ResponseWriter, r *http.Request) {
@@ -18,6 +19,13 @@ func (cfg *APIConfig) HandlerUpgraded(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		writeResponse(errResponse{Error: "Invalid JSON body"}, 400, w)
+		return
+	}
+
+	authorization := r.Header.Get("Authorization")
+	apiKey := strings.TrimPrefix(authorization, "ApiKey ")
+	if apiKey != cfg.polkaAPIKey {
+		w.WriteHeader(401)
 		return
 	}
 

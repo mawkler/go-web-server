@@ -9,9 +9,10 @@ type errResponse struct {
 type APIConfig struct {
 	DB             *database.DB
 	jwtSecret      string
+	polkaAPIKey    string
 	fileserverHits int
 }
 
-func NewAPIConfig(jwtSecret string, fileserverHits int, database *database.DB) APIConfig {
-	return APIConfig{DB: database, jwtSecret: jwtSecret, fileserverHits: fileserverHits}
+func NewAPIConfig(database *database.DB, jwtSecret, polkaAPIKey string, fileserverHits int) APIConfig {
+	return APIConfig{DB: database, polkaAPIKey: polkaAPIKey, jwtSecret: jwtSecret, fileserverHits: fileserverHits}
 }

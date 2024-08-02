@@ -39,11 +39,12 @@ func main() {
 
 	godotenv.Load()
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaAPIKey := os.Getenv("POLKA_API_KEY")
 
 	db := database.New(databasePath)
 	mux := http.NewServeMux()
 
-	cfg := api.NewAPIConfig(jwtSecret, 0, db)
+	cfg := api.NewAPIConfig(db, jwtSecret, polkaAPIKey, 0)
 	fileServer := http.FileServer(http.Dir("."))
 	appHandler := http.StripPrefix("/app", fileServer)
 

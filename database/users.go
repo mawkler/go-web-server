@@ -162,8 +162,6 @@ func (db *DB) UpgradeUser(id int) error {
 	user.IsChirpyRed = true
 	data.Users[id] = user
 
-	fmt.Println("data = ", data)
-
 	db.writeDB(data)
 	return nil
 }
