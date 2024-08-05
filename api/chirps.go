@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/mawkler/go-web-server/database"
 )
 
 func cleanMessage(msg string) string {
@@ -137,31 +140,46 @@ func (cfg *APIConfig) HandlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(204)
 }
 
+func sortChirps(chirps []database.Chirp, order string) {
+	sort.Slice(chirps, func(current, next int) bool {
+		if order == "desc" {
+			return chirps[current].ID > chirps[next].ID
+		}
+		return chirps[current].ID < chirps[next].ID
+	})
+}
+
 func (cfg *APIConfig) HandlerGetChirps(w http.ResponseWriter, r *http.Request) {
 	authorIDString := r.URL.Query().Get("author_id")
 
+	var chirps []database.Chirp
+	var err error
+
 	if r.URL.Query().Get("author_id") == "" {
-		chirps, err := cfg.DB.GetChirps()
+		chirps, err = cfg.DB.GetChirps()
 		if err != nil {
+			fmt.Printf("Failed to get chirps by author ID: %s", err)
 			w.WriteHeader(500)
+			return
+		}
+	} else {
+		authorID, err := strconv.Atoi(authorIDString)
+		if err != nil {
+			w.WriteHeader(400)
+			writeResponse("query parameter authorid_id is non-numeric", 400, w)
+			return
 		}
 
-		writeResponse(chirps, 200, w)
-		return
+		chirps, err = cfg.DB.GetChirpsByAuthor(authorID)
+		if err != nil {
+			log.Printf("Failed to get chirps by author: %s", err)
+			w.WriteHeader(500)
+			return
+		}
 	}
 
-	authorID, err := strconv.Atoi(authorIDString)
-	if err != nil {
-		w.WriteHeader(400)
-		writeResponse("query parameter authorid_id is non-numeric", 400, w)
-		return
-	}
-
-	chirps, err := cfg.DB.GetChirpsByAuthor(authorID)
-	if err != nil {
-		log.Printf("Failed to get chirps by author: %s", err)
-		w.WriteHeader(500)
-		return
+	if order := r.URL.Query().Get("sort"); order != "" {
+		sortChirps(chirps, order)
 	}
 
 	writeResponse(chirps, 200, w)
