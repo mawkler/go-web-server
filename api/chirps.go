@@ -138,10 +138,32 @@ func (cfg *APIConfig) HandlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 }
 
 func (cfg *APIConfig) HandlerGetChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.DB.GetChirps()
-	if err != nil {
-		w.WriteHeader(500)
+	authorIDString := r.URL.Query().Get("author_id")
+
+	if r.URL.Query().Get("author_id") == "" {
+		chirps, err := cfg.DB.GetChirps()
+		if err != nil {
+			w.WriteHeader(500)
+		}
+
+		writeResponse(chirps, 200, w)
+		return
 	}
+
+	authorID, err := strconv.Atoi(authorIDString)
+	if err != nil {
+		w.WriteHeader(400)
+		writeResponse("query parameter authorid_id is non-numeric", 400, w)
+		return
+	}
+
+	chirps, err := cfg.DB.GetChirpsByAuthor(authorID)
+	if err != nil {
+		log.Printf("Failed to get chirps by author: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
 	writeResponse(chirps, 200, w)
 }
 
